@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COSMIC_NEURAL_NET</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@300&display=swap');
+    </style>
+
+    <!-- Neuron Vertex Shader -->
+    <script type="x-shader/x-vertex" id="neuronVertexShader">
+        uniform float time;
+        attribute float size;
+        attribute vec3 color;
+        varying vec3 vColor;
+        void main() {
+            vColor = color;
+            vec3 pos = position;
+            // Gentle breathing motion
+            // pos += normal * sin(time * 2.0) * 0.1; 
+            vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+            gl_PointSize = size * (300.0 / -mvPosition.z);
+            // Pulse size
+            gl_PointSize *= (1.0 + sin(time * 3.0 + position.x) * 0.3);
+            gl_Position = projectionMatrix * mvPosition;
+        }
+    </script>
+
+    <!-- Neuron Fragment Shader -->
+    <script type="x-shader/x-fragment" id="neuronFragmentShader">
+        uniform float time;
+        varying vec3 vColor;
+        
+        // Pseudo-random
+        float random(vec2 st) {
+            return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+        }
+
+        void main() {
+            // Circular particle
+            vec2 center = gl_PointCoord - vec2(0.5);
+            float r = length(center);
+            if (r > 0.5) discard;
+            
+            // Soft glow
+            float glow = 1.0 - (r * 2.0);
+            glow = pow(glow, 1.5);
+            
+            // Supernova Burst
+            // Random flashes based on time and position (using color as proxy for ID/pos)
+            float burst = sin(time * 5.0 + vColor.r * 10.0);
+            burst = smoothstep(0.95, 1.0, burst) * 2.0; // Sharp, rare flashes
+            
+            vec3 finalColor = vColor + vec3(burst);
+            
+            gl_FragColor = vec4(finalColor, glow);
+        }
+    </script>
+
+    <!-- Synapse Vertex Shader -->
+    <script type="x-shader/x-vertex" id="synapseVertexShader">
+        varying vec3 vPos;
+        void main() {
+            vPos = position;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+
+    <!-- Synapse Fragment Shader -->
+    <script type="x-shader/x-fragment" id="synapseFragmentShader">
+        uniform float time;
+        uniform vec3 color;
+        varying vec3 vPos;
+
+        void main() {
+            // Signal traveling along the line
+            float signalSpeed = 3.0;
+            
+            // Use distance from center + noise to create flow
+            float dist = length(vPos);
+            
+            // Multiple waves
+            float wave1 = sin(dist * 0.2 - time * signalSpeed);
+            float wave2 = sin(dist * 0.5 - time * (signalSpeed * 1.5));
+            
+            float signal = smoothstep(0.9, 1.0, wave1 * wave2); 
+            
+            vec3 finalColor = color;
+            float alpha = 0.05; // Base visibility
+            
+            if (signal > 0.01) {
+                finalColor = mix(color, vec3(1.0, 1.0, 0.8), signal); // Turn white/gold
+                alpha += signal * 0.8;
+            }
+            
+            gl_FragColor = vec4(finalColor, alpha);
+        }
+    </script>
+</head>
+
+<body>
+    <div id="ui-layer">
+        <h1>COSMIC SYNAPSE</h1>
+        <div class="subtitle">NEURAL STAR SYSTEM</div>
+        <div id="error-log"
+            style="position: absolute; bottom: 10px; left: 10px; color: red; font-family: monospace; z-index: 100; background: rgba(0,0,0,0.8); padding: 10px; display: none;">
+        </div>
+    </div>
+    <canvas id="universe-canvas"></canvas>
+
+    <script>
+        window.addEventListener('error', function (e) {
+            const log = document.getElementById('error-log');
+            log.style.display = 'block';
+            log.innerHTML += `<div>ERROR: ${e.message} at ${e.filename}:${e.lineno}</div>`;
+            console.error(e);
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+            const log = document.getElementById('error-log');
+            log.style.display = 'block';
+            log.innerHTML += `<div>PROMISE ERROR: ${e.reason}</div>`;
+            console.error(e);
+        });
+    </script>
+
+    <!-- Import Map for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>
